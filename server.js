@@ -1,22 +1,38 @@
+const worldState = {
+    pellets: [],
+    clients: {},
+};
+
 window.SublimJs.onSublimReady(() => {
-    window.SublimJs.services.roomService.wsService.registerService('Joy', (data) => {
-        console.log(data);
+    const wsService = window.SublimJs.services.roomService.wsService;
+    wsService.registerService('Joy', (data) => {
         if (data.action == "Position") {
-            window.SublimJs.services.roomService.wsService.send(1, 'Joy', 'Position', data.content + '_' + data.user_id);
+            wsService.send(1, 'Joy', 'Position', data.content + '_' + data.user_id);
+            let clientState = worldState.clients[data.user_id];
+            if (!clientState) {
+                clientState = {};
+            }
+            clientState.position = data.content;
+            worldState.clients[data.user_id] = clientState;
         }
-    })
-    window.SublimJs.services.roomService.wsService.registerService('All', (data) => {
-        console.log(data);
+    });
+    wsService.registerService('All', (data) => {
+        if (data.action == "Leave" || data.action == "Join") {
+            wsService.send(1, 'All', data.action, data.content);
+        }
         if (data.action == "Leave") {
-            window.SublimJs.services.roomService.wsService.send(1, 'All', 'Leave', data.content);
+            delete worldState.clients[data.content];
         }
         if (data.action == "Join") {
-            window.SublimJs.services.roomService.wsService.send(1, 'All', 'Join', data.content);
+            wsService.send(1, 'World', 'State', JSON.stringify(worldState));
+            worldState.clients[data.content] = { position: '0_0' };
         }
-    })
-    window.SublimJs.services.roomService.makeAction('Open')('marde');
-    
+    });
+    window.SublimJs.services.roomService.makeAction('Open')('Fascino');
+
     setInterval(() => {
-        window.SublimJs.services.roomService.wsService.send(1, 'World', 'Pellet', Math.random() * 1000 + '_' + Math.random() * 1000);
+        const newPellet = { x: Math.random() * 1000, y: Math.random() * 1000 };
+        worldState.pellets.push(newPellet);
+        wsService.send(1, 'World', 'Pellet', newPellet.x + '_' + newPellet.y);
     }, 3000);
 });

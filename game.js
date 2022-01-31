@@ -1,4 +1,4 @@
-let updatePositionAction = () => {};
+let updatePositionAction = () => { };
 let position;
 let myId;
 let direction;
@@ -10,42 +10,57 @@ let img;
 let tilingAnchor;
 const pellets = [];
 function preload() {
-  img = loadImage('Continuo_tile.png');
-  window.SublimJs.onSublimReady(() => {
-      window.SublimJs.services.roomService.wsService.registerService('Client', (data) => {
-          if (data.action == "Identify") {
-              myId = data.content;
-          }
-      });
-      window.SublimJs.services.roomService.wsService.registerService('World', (data) => {
-          if (data.action == "Pellet") {
-            const [x, y] = data.content.split('_');
-            console.log("got pellet " + data.content);
-            pellets.push(createVector(x, y));
-          }
-      });
-      window.SublimJs.services.roomService.wsService.registerService('All', (data) => {
-          if (data.action == "Leave") {
-              playerPositions.delete(data.content);
-          }
-          if (data.action == "Join" && data.content != myId) {
-              playerPositions.set(data.content, createVector(0, 0));
-          }
-      });
-      window.SublimJs.joinRoom('marde');
-      updatePositionAction = window.SublimJs.services.joyService.makeAction('Position');
-      window.SublimJs.services.joyService.registerCustomAction('Position', (data) => {
-          const [x, y, clientId] = data.split('_');
-          if (clientId != myId) {
-              if (!playerPositions.has(clientId)) {
-                  playerPositions.set(clientId, createVector(0, 0));
-              } 
-              const pos = playerPositions.get(clientId);
-              pos.x = x;
-              pos.y = y;
-          }
-      });
-  });  
+    img = loadImage('Continuo_tile.png');
+    window.SublimJs.onSublimReady(() => {
+        window.SublimJs.services.roomService.wsService.registerService('Client', (data) => {
+            if (data.action == "Identify") {
+                myId = data.content;
+            }
+        });
+        window.SublimJs.services.roomService.wsService.registerService('World', (data) => {
+            if (data.action == "Pellet") {
+                const [x, y] = data.content.split('_');
+                console.log("got pellet " + data.content);
+                pellets.push(createVector(x, y));
+            }
+            if (data.action == "State") {
+                const worldState = JSON.parse(data.content);
+                worldState.pellets.forEach(({ x, y }) => {
+                    console.log("got pellet from world state");
+                    pellets.push(createVector(x, y));
+                });
+                for (const [clientId, clientData] of Object.entries(worldState.clients)) {
+                    if (clientId == myId) {
+                        continue;
+                    }
+                    console.log("got player from world state");
+                    const [x, y] = clientData.position.split('_');
+                    playerPositions.set(clientId, createVector(x, y));
+                }
+            }
+        });
+        window.SublimJs.services.roomService.wsService.registerService('All', (data) => {
+            if (data.action == "Leave") {
+                playerPositions.delete(data.content);
+            }
+            if (data.action == "Join" && data.content != myId) {
+                playerPositions.set(data.content, createVector(0, 0));
+            }
+        });
+        window.SublimJs.joinRoom('Fascino');
+        updatePositionAction = window.SublimJs.services.joyService.makeAction('Position');
+        window.SublimJs.services.joyService.registerCustomAction('Position', (data) => {
+            const [x, y, clientId] = data.split('_');
+            if (clientId != myId) {
+                if (!playerPositions.has(clientId)) {
+                    playerPositions.set(clientId, createVector(0, 0));
+                }
+                const pos = playerPositions.get(clientId);
+                pos.x = x;
+                pos.y = y;
+            }
+        });
+    });
 }
 
 function setup() {
@@ -53,7 +68,7 @@ function setup() {
     halfWidth = width / 2;
     halfHeight = height / 2;
     direction = createVector(0, 0);
-    position = createVector(0, 0);  
+    position = createVector(0, 0);
     tilingAnchor = createVector(0, 0);
 }
 
@@ -82,7 +97,7 @@ function draw() {
         tilingOrigin.y - ceil(tilingOrigin.y / img.height) * img.height,
     );
     const currentTilingPoint = topLeftTilingPoint.copy();
-    
+
     while (currentTilingPoint.y < height) {
         while (currentTilingPoint.x < width) {
             image(img, currentTilingPoint.x, currentTilingPoint.y);
@@ -91,7 +106,7 @@ function draw() {
         currentTilingPoint.x = topLeftTilingPoint.x;
         currentTilingPoint.y += img.height;
     }
-    translate(width/2, height/2);
+    translate(width / 2, height / 2);
 
     const minXRender = position.x - halfWidth - 50;
     const maxXRender = position.x + halfWidth + 50;
