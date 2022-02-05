@@ -9,6 +9,7 @@ let halfHeight;
 let img;
 let tilingAnchor;
 const pellets = [];
+let bullets = [];
 function preload() {
     img = loadImage('Continuo_tile.png');
     window.SublimJs.onSublimReady(() => {
@@ -49,6 +50,10 @@ function preload() {
         });
         window.SublimJs.joinRoom('Fascino');
         updatePositionAction = window.SublimJs.services.joyService.makeAction('Position');
+        const shootAction = window.SublimJs.services.joyService.makeAction('Shoot');
+        setInterval(() => {
+            shootAction('1_0');
+        }, 1000);
         window.SublimJs.services.joyService.registerCustomAction('Position', (data) => {
             const [x, y, clientId] = data.split('_');
             if (clientId != myId) {
@@ -60,6 +65,13 @@ function preload() {
                 pos.y = y;
             }
         });
+        window.SublimJs.services.joyService.registerCustomAction('Bullets', (data) => {
+            const bulletPositions = data.split('/');
+            bullets = bulletPositions.map((bulletPosition) => {
+                const [x, y] = bulletPosition.split('_');
+                return createVector(x, y);
+            });
+        });
     });
 }
 
@@ -70,6 +82,11 @@ function setup() {
     direction = createVector(0, 0);
     position = createVector(0, 0);
     tilingAnchor = createVector(0, 0);
+    setInterval(() => {
+        if (direction.x != 0 || direction.y != 0) {
+            updatePositionAction(position.x + '_' + position.y);
+        }
+    }, 100);
 }
 
 
@@ -78,7 +95,6 @@ function draw() {
     if (direction.x != 0 || direction.y != 0) {
         position.x = position.x + direction.x * (deltaTime / 5);
         position.y = position.y + direction.y * (deltaTime / 5);
-        updatePositionAction(position.x + '_' + position.y);
     }
     const tilingAnchorTranslated = p5.Vector.sub(tilingAnchor, position);
     const tilingOrigin = tilingAnchorTranslated.copy();
@@ -117,6 +133,13 @@ function draw() {
         fill('pink');
         stroke('pink');
         ellipse(pellet.x - position.x, pellet.y - position.y, 20, 20);
+        pop();
+    });
+    bullets.forEach((bullet) => {
+        push();
+        fill('blue');
+        stroke('pink');
+        ellipse(bullet.x - position.x, bullet.y - position.y, 20, 20);
         pop();
     });
 

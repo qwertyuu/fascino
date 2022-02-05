@@ -1,6 +1,7 @@
 const worldState = {
     pellets: [],
     clients: {},
+    bullets: [],
 };
 
 window.SublimJs.onSublimReady(() => {
@@ -14,6 +15,28 @@ window.SublimJs.onSublimReady(() => {
             }
             clientState.position = data.content;
             worldState.clients[data.user_id] = clientState;
+        } else if (data.action == "Shoot") {
+            const [x, y] = data.content.split('_');
+            const magnitude = Math.sqrt(x * x + y * y);
+            if (magnitude < 0.98 || magnitude > 1.02) {
+                return;
+            }
+            const clientState = worldState.clients[data.user_id];
+            if (!clientState) {
+                return;
+            }
+            const [fromx, fromy] = clientState.position.split('_');
+            const from = {
+                x: parseFloat(fromx),
+                y: parseFloat(fromy),
+            };
+            worldState.bullets.push({
+                from,
+                direction: {x: parseFloat(x), y: parseFloat(y)},
+                position: from,
+                shooter: data.user_id,
+                updates: 0,
+            });
         }
     });
     wsService.registerService('All', (data) => {
@@ -35,4 +58,22 @@ window.SublimJs.onSublimReady(() => {
         worldState.pellets.push(newPellet);
         wsService.send(1, 'World', 'Pellet', newPellet.x + '_' + newPellet.y);
     }, 3000);
+
+    setInterval(() => {
+        const bulletsPositionsString = [];
+        worldState.bullets.forEach((bullet, index, object) => {
+            bullet.position.x += bullet.direction.x;
+            bullet.position.y += bullet.direction.y;
+            bullet.updates++;
+            if (bullet.updates >= 50) {
+                // remove bullet from list, pew pew
+                object.splice(index, 1);
+            } else {
+                bulletsPositionsString.push(bullet.position.x + '_' + bullet.position.y);
+            }
+        });
+        if (bulletsPositionsString.length) {
+            wsService.send(1, 'Joy', 'Bullets', bulletsPositionsString.join('/'));
+        }
+    }, 5);
 });
